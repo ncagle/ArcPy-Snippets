@@ -97,17 +97,15 @@ def write_info(name,var): # write_info('var_name',var)
 # Time a process
 def runtime(start,finish):
 	# Add a start and finish variable markers surrounding the code to be timed
-	#start/finish = dt.now().time()
-	# Returns string of total seconds elapsed between start and finish markers
-	date = dt.now().date()
-	dt_finish = dt.combine(date, finish)
-	dt_start = dt.combine(date, start)
-	time_delta = dt_finish - dt_start
-	time_elapsed = str(time_delta.total_seconds())
+	#from datetime import datetime as dt
+	#start/finish = dt.now()
+	# Returns string of formatted elapsed time between start and finish markers
+	time_delta = (finish - start).total_seconds()
+	h = int(time_delta/(60*60))
+	m = int((time_delta%(60*60))/60)
+	s = time_delta%60.
+	time_elapsed = "{}:{:>02}:{:>05.5f}".format(h, m, s)
 	return time_elapsed
-start = dt.now().time()
-arcpy.MultipartToSinglepart_management(in_class, out_class)
-finish = dt.now().time()
 
 
 
@@ -366,3 +364,31 @@ except Exception as e:
 #             \_\         \__       __/\          \_\       /_/           \_\
 #                          \_\     /_/  \__
 #                                        \_\
+
+
+
+
+Arcpy Boilerplate
+
+import arcpy as ap
+from arcpy import AddMessage as write
+from arcpy import AddFieldDelimiters as fieldDelim
+import os
+import math"
+import datetime as dt
+import pandas as pd
+import numpy as np
+import sys
+
+
+
+def main(*argv):
+	pass
+
+
+if __name__=='__main__':
+	ap.env.overwriteOutput = True
+	argv = tuple(ap.GetParameterAsText(i) for i in range(ap.GetArgumentCount()))
+	now = dt.datetime.now()
+	main(*argv)
+	write(dt.datetime.now() - now)
