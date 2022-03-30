@@ -1,3 +1,205 @@
+#                           __                    __
+#           __       __     \_\  __          __   \_\  __   __       __
+#           \_\     /_/        \/_/         /_/      \/_/   \_\     /_/
+#         .-.  \.-./  .-.   .-./  .-.   .-./  .-.   .-\   .-.  \.-./  .-.
+#        //-\\_//-\\_//-\\_//-\\_//-\\_//-\\_// \\_//-\\_//-\\_//-\\_//-\\
+#      __(   '-'   '-'\  '-'   '-'  /'-'   '-'\__'-'   '-'__/'-'   '-'\__
+#     /_/))            \__       __/\          \_\       /_/           \_\
+#  ___\_//              \_\     /_/  \__
+# /_/  ((                             \_\
+#       )) __
+# __   // /_/
+# \_\_((_/___
+#      ))  \_\
+#      \\
+#       )) _
+# __   // /_/
+# \_\_((
+#      \\
+#       )) _
+# __   // /_/
+# \_\_((_/___
+#      ))  \_\
+#      \\
+#       )) _
+# __   // /_/
+# \_\_((
+#      \\
+#       )) _
+# __   // /_/
+# \_\_((_/___
+#      ))  \_\                __                    __
+#      \\     __       __     \_\  __          __   \_\  __   __       __
+#   __  ))    \_\     /_/        \/_/         /_/      \/_/   \_\     /_/
+#   \_\_((   .-.  \.-./  .-.   .-./  .-.   .-./  .-.   .-\   .-.  \.-./  .-.
+#        \\_//-\\_//-\\_//-\\_//-\\_//-\\_//-\\_// \\_//-\\_//-\\_//-\\_//-\\
+#         '-'\__'-'   '-'\  '-'   '-'  /'-'   '-'\__'-'   '-'__/'-'   '-'\__
+#             \_\         \__       __/\          \_\       /_/           \_\
+#                          \_\     /_/  \__
+#                                        \_\
+
+
+
+
+# Finds empty fields and NULL geometry.
+populated = lambda x: x is not None and str(x).strip() != ''
+fc_fields = ['foobar', 'SHAPE@']
+with arcpy.da.SearchCursor(fc, fc_fields) as scursor:
+	for row in scursor:
+		if row[-1] is None:
+			pass # NULL Geometry
+		if not populated(row[0]):
+			pass # Field is NULL or empty
+
+
+
+# Remove Nones from a list
+cleaned_list = list(filter(None, filenames))
+
+
+
+def debug_view(**kwargs): # Input variable to view info in script output
+	# Set x_debug = False outside of loop where x is defined
+	# Set repeat = False to output for only the first loop or repeat = True to output for every loop
+	# Example:
+	#foo_debug = False
+	#for fc in fc_list:
+	#    foo = 'bar'
+	#    debug_view(foo=foo,repeat=False)
+	#
+	#>>> ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	#    Debug info for foo:
+	#       Variable Type: <class 'str'>
+	#       Assigned Value: 'bar'
+	#    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	arg_list = kwargs.keys() # Python 2: kwargs.keys()  # Python 3: list(kwargs.keys())
+	arg_list.remove('repeat')
+	while not globals()[arg_list[0] + "_debug"]:
+		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		write("Debug info for {0}:".format(arg_list[0]))
+		write("   Variable Type: {0}".format(type(kwargs[arg_list[0]])))
+		write("   Assigned Value: {0}".format(kwargs[arg_list[0]]))
+		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		if not kwargs['repeat']:
+			globals()[arg_list[0] + "_debug"] = True
+		else:
+			return
+
+
+
+def write_info(name, var): # Write information for given variable
+	#write_info('var_name', var)
+	write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+	write("Debug info for {0}:".format(name))
+	write("   Variable Type: {0}".format(type(var)))
+	if type(var) is str or type(var) is unicode:
+		write("   Assigned Value: '{0}'".format(var))
+	else:
+		write("   Assigned Value: {0}".format(var))
+	write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+
+
+def runtime(start, finish): # Time a process or code block
+	# Add a start and finish variable markers surrounding the code to be timed
+	#from datetime import datetime as dt
+	#start/finish = dt.now()
+	# Returns string of formatted elapsed time between start and finish markers
+	time_delta = (finish - start).total_seconds()
+	h = int(time_delta/(60*60))
+	m = int((time_delta%(60*60))/60)
+	s = time_delta%60.
+	time_elapsed = "{}:{:>02}:{:>05.4f}".format(h, m, s) # 00:00:00.0000
+	return time_elapsed
+
+
+
+def get_count(fc_layer): # Returns feature count
+    results = int(ap.GetCount_management(fc_layer).getOutput(0))
+    return results
+
+
+
+def update_row_tuple(irow, index, val): # Update a specific row field inside an insert cursor
+	# Usually used for updating geometry before copying the row
+	# For short tuples, slicing and concatenation is faster
+	# But performance of long tuples is more consistently efficient with list conversion
+	#geometry_obj = SHAPE@.method()
+	#irow = update_row_tuple(irow, -1, geometry_obj)
+	#icursor.insertRow(irow)
+	edit_row = list(irow)
+	edit_row[index] = val
+	return tuple(edit_row)
+
+
+
+def make_field_list(dsc): # Construct a list of proper feature class fields
+	# Sanitizes Geometry fields to work on File Geodatabases or SDE Connections
+	#field_list = make_field_list(describe_obj)
+	fields = dsc.fields # List of all fc fields
+	out_fields = [dsc.OIDFieldName, dsc.lengthFieldName, dsc.areaFieldName] # List Geometry and OID fields to be removed
+	# Construct sanitized list of field names
+	field_list = [field.name for field in fields if field.type not in ['Geometry'] and field.name not in out_fields]
+	# Further cleaning to account for other possible geometry standards including ST_Geometry
+	field_list[:] = [x for x in field_list if 'Shape' not in x and 'shape' not in x and 'Area' not in x and 'area' not in x and 'Length' not in x and 'length' not in x]
+	# Add OID@ token to index[-2] and Shape@ geometry token to index[-1]
+	field_list.append('OID@')
+	field_list.append('SHAPE@')
+	return field_list
+
+
+
+def get_local(out_path, dsc): # Gets the clean feature class name and its local path in the target GDB
+	#local_fc_path, clean_fc_name = get_local(output_path, describe_obj)
+	# dsc.file        = hexagon250_e04a_surge2.sde.AeronauticCrv
+	# split(".")     = [hexagon250_e04a_surge2, sde, AeronauticCrv]
+	# split(".")[-1] = AeronauticCrv
+	fc_name = dsc.file.split(".")[-1] # AeronauticCrv
+	local_fc = os.path.join(out_path, "TDS", fc_name) # C:\Projects\njcagle\finishing\E04A\hexagon250_e04a_surge2_2022Mar28_1608.gdb\TDS\AeronauticCrv
+	return local_fc, fc_name
+
+
+
+def make_gdb_schema(TDS, xml_out, out_folder, gdb_name, out_path): # Creates a new file GDB with an empty schema identical to the source
+	# Works to replicate schema from SDE
+	# TDS - Path to source TDS with schema to replicate       # "T:\GEOINT\FEATURE DATA\hexagon250_e04a_surge.sde\hexagon250_e04a_surge2.sde.TDS"
+	# xml_out - Output path for schema xml file               # "C:\Projects\njcagle\finishing\E04A\hexagon250_e04a_surge_schema.xml"
+	# out_folder - Folder path where new GDB will be created  # "C:\Projects\njcagle\finishing\E04A"
+	# gdb_name - Name of GDB to be created                    # "hexagon250_e04a_surge_2022Mar29_1923"
+	# out_path - Path of newly created GDB                    # "C:\Projects\njcagle\finishing\E04A\hexagon250_e04a_surge_2022Mar29_1923.gdb"
+	start_schema = dt.now()
+	write("Exporting XML workspace")
+	arcpy.ExportXMLWorkspaceDocument_management(TDS, xml_out, "SCHEMA_ONLY", "BINARY", "METADATA")
+	write("Creating File GDB")
+	arcpy.CreateFileGDB_management(out_folder, gdb_name, "CURRENT")
+	write("Importing XML workspace")
+	arcpy.ImportXMLWorkspaceDocument_management(out_path, xml_out, "SCHEMA_ONLY")
+	write("Local blank GDB with schema successfully created")
+	os.remove(xml_out)
+	finish_schema = dt.now()
+	write("Time to create local GDB with schema: {0}".format(runtime(start_schema,finish_schema)))
+
+
+
+################################################################################
+
+
+
+
+# Gets messages from the ArcGIS tools ran and sends messages to dialog
+def writeresults():
+    messages = GetMessages(0)
+    warnings = GetMessages(1)
+    errors = GetMessages(2)
+    AddMessage(messages)
+    if len(warnings) > 0:
+        AddWarning(warnings)
+    if len(errors) > 0:
+        AddError(errors)
+    return
+
+
+
 ### Walk SDE and count features in feature classes
 import arcpy
 import os
@@ -40,87 +242,9 @@ with arcpy.da.SearchCursor(fc, field_list) as scursor:
 
 
 
-# Finds empty fields and NULL geometry.
-populated = lambda x: x is not None and str(x).strip() != ''
-fc_fields = ['foobar', 'SHAPE@']
-with arcpy.da.SearchCursor(fc, fc_fields) as scursor:
-	for row in scursor:
-		if row[-1] is None:
-			pass # NULL Geometry
-		if not populated(row[0]):
-			pass # Field is NULL or empty
 
-# Remove Nones from a list
-cleaned_list = list(filter(None, filenames))
+################################################################################
 
-
-
-def debug_view(**kwargs): # Input variable to view info in script output
-	# Set x_debug = False outside of loop where x is defined
-	# Set repeat = False to output for only the first loop or repeat = True to output for every loop
-	# Example:
-	#foo_debug = False
-	#for fc in fc_list:
-	#    foo = 'bar'
-	#    debug_view(foo=foo,repeat=False)
-	#
-	#>>> ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	#    Debug info for foo:
-	#       Variable Type: <class 'str'>
-	#       Assigned Value: 'bar'
-	#    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	arg_list = kwargs.keys() # Python 2: kwargs.keys()  # Python 3: list(kwargs.keys())
-	arg_list.remove('repeat')
-	while not globals()[arg_list[0] + "_debug"]:
-		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-		write("Debug info for {0}:".format(arg_list[0]))
-		write("   Variable Type: {0}".format(type(kwargs[arg_list[0]])))
-		write("   Assigned Value: {0}".format(kwargs[arg_list[0]]))
-		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-		if not kwargs['repeat']:
-			globals()[arg_list[0] + "_debug"] = True
-		else:
-			return
-
-
-
-# Write information for given variable
-def write_info(name,var): # write_info('var_name',var)
-	write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	write("Debug info for {0}:".format(name))
-	write("   Variable Type: {0}".format(type(var)))
-	write("   Assigned Value: {0}".format(var))
-	write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-
-
-# Time a process
-def runtime(start,finish):
-	# Add a start and finish variable markers surrounding the code to be timed
-	#from datetime import datetime as dt
-	#start/finish = dt.now()
-	# Returns string of formatted elapsed time between start and finish markers
-	time_delta = (finish - start).total_seconds()
-	h = int(time_delta/(60*60))
-	m = int((time_delta%(60*60))/60)
-	s = time_delta%60.
-	time_elapsed = "{}:{:>02}:{:>05.5f}".format(h, m, s)
-	return time_elapsed
-
-
-
-def get_count(fc_layer):
-    results = int(ap.GetCount_management(fc_layer).getOutput(0))
-    return results
-
-
-
-def update_row_tuple(urow, index, val):
-	# For short tuples, slicing and concatenation is faster.
-	# But performance of long tuples is more consistently efficient with list conversion.
-	edit_row = list(urow)
-	edit_row[index] = val
-	return tuple(edit_row)
 
 
 
@@ -218,177 +342,3 @@ for fc in fc_list:
 			for srow in scursor:
 				icursor.insertRow(srow)
 del icursor
-
-
-
-# Gets messages from the ArcGIS tools ran and sends messages to dialog
-def writeresults():
-    messages = GetMessages(0)
-    warnings = GetMessages(1)
-    errors = GetMessages(2)
-    AddMessage(messages)
-    if len(warnings) > 0:
-        AddWarning(warnings)
-    if len(errors) > 0:
-        AddError(errors)
-    return
-
-
-
-'''
-Demonstrates a step progressor by looping through records
-on a table. Use a table with 10,000 or so rows - smaller tables
-just whiz by.
-   1 = table name
-   2 = field on the table
-'''
-import arcpy, time, math
-try:
-    inTable = arcpy.GetParameterAsText(0)
-    inField = 'OID@'
-
-    # Determine number of records in table
-    #
-    record_count = int(arcpy.GetCount_management(inTable).getOutput(0))
-    if record_count == 0:
-        raise ValueError("{0} has no records to count".format(inTable))
-
-    arcpy.AddMessage("Number of rows = {0}\n".format(record_count))
-
-    # Method 1: Calculate and use a suitable base 10 increment
-    # ===================================
-
-    p = int(math.log10(record_count))
-    if not p:
-        p = 1
-    increment = int(math.pow(10, p - 1))
-
-    arcpy.SetProgressor(
-        "step", "Incrementing by {0} on {1}".format(increment, inTable),
-        0, record_count, increment)
-
-    beginTime = time.clock()
-    with arcpy.da.SearchCursor(inTable, [inField]) as cursor:
-        for i, row in enumerate(cursor, 0):
-            if (i % increment) == 0:
-                arcpy.SetProgressorPosition(i)
-            fieldValue = row[0]
-
-    arcpy.SetProgressorPosition(i)
-    arcpy.AddMessage("Method 1")
-    arcpy.AddMessage("\tIncrement = {0}".format(increment))
-    arcpy.AddMessage("\tElapsed time: {0}\n".format(time.clock() - beginTime))
-
-    # Method 2: let's just move in 10 percent increments
-    # ===================================
-    increment = int(record_count / 10.0)
-    arcpy.SetProgressor(
-        "step", "Incrementing by {0} on {1}".format(increment, inTable),
-        0, record_count, increment)
-
-    beginTime = time.clock()
-    with arcpy.da.SearchCursor(inTable, [inField]) as cursor:
-        for i, row in enumerate(cursor, 0):
-            if (i % increment) == 0:
-                arcpy.SetProgressorPosition(i)
-            fieldValue = row[0]
-
-    arcpy.SetProgressorPosition(i)
-    arcpy.AddMessage("Method 2")
-    arcpy.AddMessage("\tIncrement = {0}".format(increment))
-    arcpy.AddMessage("\tElapsed time: {0}\n".format(time.clock() - beginTime))
-
-    # Method 3: use increment of 1
-    # ===================================
-    increment = 1
-    arcpy.SetProgressor("step",
-                        "Incrementing by 1 on {0}".format(inTable),
-                        0, record_count, increment)
-
-    beginTime = time.clock()
-    with arcpy.da.SearchCursor(inTable, [inField]) as cursor:
-        for row in cursor:
-            arcpy.SetProgressorPosition()
-            fieldValue = row[0]
-
-    arcpy.SetProgressorPosition(record_count)
-    arcpy.ResetProgressor()
-    arcpy.AddMessage("Method 3")
-    arcpy.AddMessage("\tIncrement = {0}".format(increment))
-    arcpy.AddMessage("\tElapsed time: {0}\n".format(time.clock() - beginTime))
-
-    arcpy.AddMessage("Pausing for a moment to allow viewing...")
-    time.sleep(2.0)  # Allow viewing of the finished progressor
-
-except Exception as e:
-    arcpy.AddError(e[0])
-
-
-
-#                           __                    __
-#           __       __     \_\  __          __   \_\  __   __       __
-#           \_\     /_/        \/_/         /_/      \/_/   \_\     /_/
-#         .-.  \.-./  .-.   .-./  .-.   .-./  .-.   .-\   .-.  \.-./  .-.
-#        //-\\_//-\\_//-\\_//-\\_//-\\_//-\\_// \\_//-\\_//-\\_//-\\_//-\\
-#      __(   '-'   '-'\  '-'   '-'  /'-'   '-'\__'-'   '-'__/'-'   '-'\__
-#     /_/))            \__       __/\          \_\       /_/           \_\
-#  ___\_//              \_\     /_/  \__
-# /_/  ((                             \_\
-#       )) __
-# __   // /_/
-# \_\_((_/___
-#      ))  \_\
-#      \\
-#       )) _
-# __   // /_/
-# \_\_((
-#      \\
-#       )) _
-# __   // /_/
-# \_\_((_/___
-#      ))  \_\
-#      \\
-#       )) _
-# __   // /_/
-# \_\_((
-#      \\
-#       )) _
-# __   // /_/
-# \_\_((_/___
-#      ))  \_\                __                    __
-#      \\     __       __     \_\  __          __   \_\  __   __       __
-#   __  ))    \_\     /_/        \/_/         /_/      \/_/   \_\     /_/
-#   \_\_((   .-.  \.-./  .-.   .-./  .-.   .-./  .-.   .-\   .-.  \.-./  .-.
-#        \\_//-\\_//-\\_//-\\_//-\\_//-\\_//-\\_// \\_//-\\_//-\\_//-\\_//-\\
-#         '-'\__'-'   '-'\  '-'   '-'  /'-'   '-'\__'-'   '-'__/'-'   '-'\__
-#             \_\         \__       __/\          \_\       /_/           \_\
-#                          \_\     /_/  \__
-#                                        \_\
-
-
-
-
-Arcpy Boilerplate
-
-import arcpy as ap
-from arcpy import AddMessage as write
-from arcpy import AddFieldDelimiters as fieldDelim
-import os
-import math"
-import datetime as dt
-import pandas as pd
-import numpy as np
-import sys
-
-
-
-def main(*argv):
-	pass
-
-
-if __name__=='__main__':
-	ap.env.overwriteOutput = True
-	argv = tuple(ap.GetParameterAsText(i) for i in range(ap.GetArgumentCount()))
-	now = dt.datetime.now()
-	main(*argv)
-	write(dt.datetime.now() - now)
