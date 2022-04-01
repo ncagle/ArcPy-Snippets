@@ -181,6 +181,25 @@ def make_gdb_schema(TDS, xml_out, out_folder, gdb_name, out_path): # Creates a n
 
 
 
+def fractinull(shp, fc_name, oid): # Checks for NULL geometry
+	# If geometry is NULL, output the feature class and OID and continue to next feature
+	#fractinull(geometry_obj, fc_name, oid)
+	ohdeargod = False
+	if shp is None:
+		ohdeargod = True
+		write("{0} feature OID: {1} found with NULL geometry. Skipping transfer.".format(fc_name, oid))
+	return ohdeargod
+
+
+def fractinull(shp, fc_name, oid): # Checks for NULL geometry
+	# If geometry is NULL, output the feature class and OID and continue to next feature
+	#fractinull(geometry_obj, fc_name, oid)
+	if shp is None:
+		write("{0} feature OID: {1} found with NULL geometry. Skipping transfer.".format(fc_name, oid))
+		continue
+
+
+
 ################################################################################
 
 
@@ -276,58 +295,6 @@ def copy_fc(source, target, *args, **kwargs): #(s_f)ields, (s_q)uery, (t_f)ields
 
 
 
-# Conversion toolset
-@gptooldoc('LoadData_production', None)
-def LoadData(in_cross_reference=None, in_sources=None, in_target=None, in_dataset_map_defs=None, row_level_errors=None):
-    """LoadData_production(in_cross_reference, in_sources;in_sources..., in_target, {in_dataset_map_defs;in_dataset_map_defs...}, {row_level_errors})
-
-        Moves features from one schema to another by loading data from a
-        source to a target workspace.  Data mapping rules described in a
-        cross-reference database are applied during the load. All Esri Mapping
-        and Charting solutions products install a cross-reference database
-        that you can use. You can create a cross-reference database using the
-        Create Cross-reference tool.Data that matches the schema defined in
-        the cross-reference database
-        for the source is appended to the target workspace. The cross-
-        reference database contains a DatasetMapping table that lists pairs of
-        source and target dataset names. Each source and target name pair can
-        have a WHERE clause and a subtype. The WHERE clause defines a subset
-        of features in the source to append to the target. Subtype identifies
-        a subtype in the target feature class into which features are loaded.
-
-     INPUTS:
-      in_cross_reference (Workspace):
-          The path to a cross-reference database. Cross-reference databases for
-          each product specification reside in the <install location>\\SolutionNa
-          me\\Desktop10.2\\[ProductName]\\[SpecificationName]\\DataConversion
-          directory.
-      in_sources (Workspace):
-          A list of workspaces that contain the source features to load into the
-          target workspace.
-      in_target (Workspace):
-          The target workspace that contains the schema referenced in the cross-
-          reference database. Source features are loaded into this workspace.
-      in_dataset_map_defs {String}:
-          The source to target feature class mapping list. The format of this
-          string is id | SourceDataset | TargetDataset | WhereClause | Subtype.
-      row_level_errors {Boolean}:
-          Indicates if the tool will log errors that occur while inserting new
-          rows into feature classes and tables in the in_target parameter.
-
-          * ROW_LEVEL_ERROR_LOGGING-Log errors that occur during individual row-
-          level inserts. This is the default.
-
-          * NO_ROW_LEVEL_ERROR_LOGGING-Do not log errors that occur during
-          individual row-level inserts."""
-    from arcpy.geoprocessing._base import gp, gp_fixargs
-    from arcpy.arcobjects.arcobjectconversion import convertArcObjectToPythonObject
-    try:
-        retval = convertArcObjectToPythonObject(gp.LoadData_production(*gp_fixargs((in_cross_reference, in_sources, in_target, in_dataset_map_defs, row_level_errors), True)))
-        return retval
-    except Exception as e:
-        raise e
-
-
 
 import arcpy
 fc_list = [a list of FCs that you want to merge together]
@@ -342,3 +309,46 @@ for fc in fc_list:
 			for srow in scursor:
 				icursor.insertRow(srow)
 del icursor
+
+
+
+
+import os
+
+def cut_geometry(to_cut, cutter):
+    """
+    Cut a feature by a line, splitting it into its separate geometries.
+    :param to_cut: The feature to cut.
+    :param cutter: The polylines to cut the feature by.
+    :return: The feature with the split geometry added to it.
+    """
+    arcpy.AddField_management(to_cut, "SOURCE_OID", "LONG")
+    geometries = []
+    polygon = None
+
+    edit = arcpy.da.Editor(os.path.dirname(to_cut))
+    edit.startEditing(False, False)
+
+    insert_cursor = arcpy.da.InsertCursor(to_cut, ["SHAPE@", "SOURCE_OID"])
+
+    with arcpy.da.SearchCursor(cutter, "SHAPE@") as lines:
+        for line in lines:
+            with arcpy.da.UpdateCursor(to_cut, ["SHAPE@", "OID@", "SOURCE_OID"]) as polygons:
+                for polygon in polygons:
+                    if line[0].disjoint(polygon[0]) == False:
+                        if polygon[2] == None:
+                            id = polygon[1]
+                        # Remove previous geom if additional cuts are needed for intersecting lines
+                        if len(geometries) > 1:
+                            del geometries[0]
+                        geometries.append([polygon[0].cut(line[0]), id])
+                        polygons.deleteRow()
+                for geometryList in geometries:
+                    for geometry in geometryList[0]:
+                        if geometry.area > 0:
+                            insert_cursor.insertRow([geometry, geometryList[1]])
+
+    edit.stopEditing(True)
+
+
+cut_geometry(r"PATH_TO_POLY", r"PATH_TO_LINES")
