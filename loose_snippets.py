@@ -119,18 +119,48 @@ def get_count(fc_layer): # Returns feature count
     return results
 
 
+#### Update DVOF sourcedates to first of the month for stupid caci bullshit
+import arcpy
+from datetime import datetime
 
-def update_row_tuple(irow, index, val): # Update a specific row field inside an insert cursor
+with arcpy.da.UpdateCursor(dvof_file, ['SOURCEDT']) as dvof:
+	for row in dvof:
+		date_field = str(row[0])
+		feat_date = datetime.strptime(date_field, "%m/%d/%Y")
+		dumb_feat_date = feat_date.replace(day=1)
+		row[0] = dumb_feat_date
+		dvof.updateRow(row)
+
+
+def add_row_tuple(add_row, index, val): # Adds new index in row tuple with specified value
+	# Reminder: The length of the row tuple has to match the target cursor to be applied
+	#for add_row in cursor:
+	##add_row = add_row_tuple(add_row, index, value)
+	##icursor.insertRow(add_row)
+	add_row = list(add_row)
+	place = int((abs(index)-1) * (index/abs(index)))
+	add_row.insert(place, val)
+	return tuple(add_row)
+
+def update_row_tuple(edit_row, index, val): # Update a specific row field inside a cursor tuple
 	# Usually used for updating geometry before copying the row
 	# For short tuples, slicing and concatenation is faster
 	# But performance of long tuples is more consistently efficient with list conversion
-	#geometry_obj = SHAPE@.method()
-	#irow = update_row_tuple(irow, -1, geometry_obj)
-	#icursor.insertRow(irow)
-	edit_row = list(irow)
+	#for edit_row in cursor:
+	##edit_row = update_row_tuple(edit_row, index, value)
+	##icursor.insertRow(edit_row)
+	edit_row = list(edit_row)
 	edit_row[index] = val
 	return tuple(edit_row)
 
+def remove_row_tuple(rem_row, index): # Remove specified index from row tuple
+	# Reminder: The length of the row tuple has to match the target cursor to be applied
+	#for rem_row in cursor:
+	##rem_row = remove_row_tuple(rem_row, index, value)
+	##icursor.insertRow(rem_row)
+	rem_row = list(rem_row)
+	rem_row.pop(index)
+	return tuple(rem_row)
 
 
 def make_field_list(dsc): # Construct a list of proper feature class fields
