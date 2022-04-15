@@ -34,19 +34,19 @@ import os
 
 ########################################################################
 class FeatureClass(object):
-    """FeatureClass object"""
+	"""FeatureClass object"""
 
-    #----------------------------------------------------------------------
-    def __init__(self,path):
-        """Constructor for FeatureClass"""
-        gdb_attributes_dict = {'fc_path': arcpy.Describe(path).catalogPath,
+	#----------------------------------------------------------------------
+	def __init__(self,path):
+		"""Constructor for FeatureClass"""
+		gdb_attributes_dict = {'fc_path': arcpy.Describe(path).catalogPath,
 							   'fc_name': arcpy.Describe(path).file.split(".")[-1],
 							   'shape_type': arcpy.Describe(path).shapeType, # Polygon, Polyline, Point, Multipoint, MultiPatch
 							   'shape_field': arcpy.Describe(path).shapeFieldName,
 							   'length_field': arcpy.Describe(path).lengthFieldName,
 							   'area_field': arcpy.Describe(path).areaFieldName,
 							   'oid_field': arcpy.Describe(path).OIDFieldName,
-							   'hasSpatialIndex': arcpy.Describe(path).hasSpatialIndex
+							   'has_spatial_index': arcpy.Describe(path).hasSpatialIndex
 							   }
 
 		out_fields = [self.oid_field, self.length_field, self.area_field, self.shape_field] # List Geometry and OID fields to be removed
@@ -56,43 +56,91 @@ class FeatureClass(object):
 		field_list.append('OID@')
 		field_list.append('SHAPE@')
 
-        for k,v in gdb_attributes_dict.iteritems():
-            setattr(self, k, v)
+		for k,v in gdb_attributes_dict.iteritems():
+			setattr(self, k, v)
 
 		setattr(self,'TDS',os.path.dirname(self.fc_path))
 		setattr(self,'fields',field_list)
-        setattr(self,'fcFeatures',Features(self.fc_path,self.fields))
+		setattr(self,'fc_features',Features(self.fc_path,self.fields))
 
-    #----------------------------------------------------------------------
-    def __str__(self):
-        return self.baseName
+	#----------------------------------------------------------------------
+	def __str__(self):
+		return self.baseName
 
-'shape_type': u'Polyline',
-'fc_name': u'HydrographyCrv',
-'hasSpatialIndex': True,
-'oid_field': u'objectid',
-'shape_field': u'shape',
-'fc_path': u'T:\\GEOINT\\FEATURE DATA\\Hexagon 250-251\\hexagon250_e04a_surge2.sde\\hexagon250_e04a_surge2.sde.TDS\\hexagon250_e04a_surge2.sde.HydrographyCrv',
-'area_field': u'',
-'length_field': u'st_length(shape)'
+"""FeatureClass.shape_type"""
+	u'Polyline'
+"""FeatureClass.fc_name"""
+	u'HydrographyCrv'
+"""FeatureClass.has_spatial_index"""
+	True
+"""FeatureClass.oid_field"""
+	u'objectid'
+"""FeatureClass.shape_field"""
+	u'shape'
+"""FeatureClass.fc_path"""
+	u'T:\\GEOINT\\FEATURE DATA\\Hexagon 250-251\\hexagon250_e04a_surge2.sde\\hexagon250_e04a_surge2.sde.TDS\\hexagon250_e04a_surge2.sde.HydrographyCrv'
+"""FeatureClass.area_field"""
+	u''
+"""FeatureClass.length_field"""
+	u'st_length(shape)'
 
-'TDS': u'T:\\GEOINT\\FEATURE DATA\\Hexagon 250-251\\hexagon250_e04a_surge2.sde\\hexagon250_e04a_surge2.sde.TDS'
+"""FeatureClass.TDS"""
+	u'T:\\GEOINT\\FEATURE DATA\\Hexagon 250-251\\hexagon250_e04a_surge2.sde\\hexagon250_e04a_surge2.sde.TDS'
 
-'fields': [u'f_code', u'fcsubtype', u'aoo', u'ara', u'atc', u'bh141_slta', u'bh141_sltb', u'bmc', u'bmc2', u'bmc3', u'caa', u'cda', u'cwt', u'dev', u'dft', u'dfu', u'dim', u'fcs', u'hgs', u'hgt', u'ldc', u'lmc', u'loc', u'lzn', u'mcc', u'mcc2', u'mcc3', u'nvs', u'oth', u'pcf', u'pwa', u'rle', u'sbb', u'spt', u'thi', u'tid', u'trs', u'trs2', u'trs3', u'ufi', u'voi', u'wcc', u'wd3', u'wid', u'wmt', u'woc', u'wrt', u'zi004_rcg', u'zi005_fna', u'zi005_nfn', u'zi006_mem', u'zi020_ge4', u'zi024_hyp', u'zi024_scc', u'zi024_ywq', u'zi026_ctuc', u'zi026_ctul', u'zi026_ctuu', u'zvh', u'aha', u'zi001_srt', u'zi001_sdv', u'zi001_sdp', u'zi001_sps', u'zi001_vsc', u'zi001_vsd', u'zi001_vsn', u'ccn', u'cdr', u'zsax_rs0', u'zsax_rx0', u'zsax_rx3', u'zsax_rx4', u'globalid', u'version', u'zzhex1', u'zzhex2', u'zzhex3', u'created_user', u'created_date', u'last_edited_user', u'last_edited_date', 'OID@', 'SHAPE@']
+"""FeatureClass.fields"""
+	[u'f_code', u'fcsubtype', u'aoo', u'ara', u'atc', u'bh141_slta', u'bh141_sltb', u'bmc', u'bmc2', u'bmc3', u'caa', u'cda', u'cwt', u'dev', u'dft', u'dfu', u'dim', u'fcs', u'hgs', u'hgt', u'ldc', u'lmc', u'loc', u'lzn', u'mcc', u'mcc2', u'mcc3', u'nvs', u'oth', u'pcf', u'pwa', u'rle', u'sbb', u'spt', u'thi', u'tid', u'trs', u'trs2', u'trs3', u'ufi', u'voi', u'wcc', u'wd3', u'wid', u'wmt', u'woc', u'wrt', u'zi004_rcg', u'zi005_fna', u'zi005_nfn', u'zi006_mem', u'zi020_ge4', u'zi024_hyp', u'zi024_scc', u'zi024_ywq', u'zi026_ctuc', u'zi026_ctul', u'zi026_ctuu', u'zvh', u'aha', u'zi001_srt', u'zi001_sdv', u'zi001_sdp', u'zi001_sps', u'zi001_vsc', u'zi001_vsd', u'zi001_vsn', u'ccn', u'cdr', u'zsax_rs0', u'zsax_rx0', u'zsax_rx3', u'zsax_rx4', u'globalid', u'version', u'zzhex1', u'zzhex2', u'zzhex3', u'created_user', u'created_date', u'last_edited_user', u'last_edited_date', 'OID@', 'SHAPE@']
 
 
 
 ########################################################################
 class Features:
-    """Feature objects in FeatureClass object"""
+	"""Feature objects in FeatureClass object"""
 
-    #----------------------------------------------------------------------
-    def __init__(self,path,fields):
-        """Constructor for Features"""
-        self.path = path
+	#----------------------------------------------------------------------
+	def __init__(self,path,fields):
+		"""Constructor for Features"""
+		self.path = path
 		self.fields = fields
-        self.features = [feature for feature in arcpy.da.SearchCursor(self.path,self.fields)]
-        self.attribute_table = [{self.fields[feat.index(v)]:v for v in feat} for feat in self.features]
+		self.features = [feature for feature in arcpy.da.SearchCursor(self.path,self.fields)]
+		self.attribute_table = [{self.fields[feat.index(v)]:v for v in feat} for feat in self.features]
+
+"""Features.path"""
+	u'C:\\ArcTutor\\Editing\\Zion.gdb\\Springs'
+"""Features.fields"""
+	[u'OBJECTID', u'Shape', u'ComID', u'FDate', u'Resolution', u'GNIS_ID', u'GNIS_Name', u'ReachCode', u'FType', u'FCode']
+"""Features.features[0:3]"""
+	[(228, (305711.4726999998, 4156967.8816), 33034429, datetime.datetime(2002, 2, 6, 0, 0), 2, None, None, None, 458, 45800),
+	(229, (305315.84750000015, 4156801.4681), 33034431, datetime.datetime(2002, 2, 6, 0, 0), 2, None, None, None, 458, 45800),
+	(230, (305697.4517000001, 4156837.429199999), 33034433, datetime.datetime(2002, 2, 6, 0, 0), 2, None, None, None, 458, 45800)]
+"""Features.attribute_table[0:3]"""
+	[{u'ComID': 33034429,
+		u'FCode': 45800,
+		u'FDate': datetime.datetime(2002, 2, 6, 0, 0),
+		u'FType': 458,
+		u'GNIS_ID': None,
+		u'OBJECTID': 228,
+		u'Resolution': 2,
+		u'Shape': (305711.4726999998, 4156967.8816)
+		},
+	 {u'ComID': 33034431,
+		u'FCode': 45800,
+		u'FDate': datetime.datetime(2002, 2, 6, 0, 0),
+		u'FType': 458,
+		u'GNIS_ID': None,
+		u'OBJECTID': 229,
+		u'Resolution': 2,
+		u'Shape': (305315.84750000015, 4156801.4681)
+		},
+	 {u'ComID': 33034433,
+		u'FCode': 45800,
+		u'FDate': datetime.datetime(2002, 2, 6, 0, 0),
+		u'FType': 458,
+		u'GNIS_ID': None,
+		u'OBJECTID': 230,
+		u'Resolution': 2,
+		u'Shape': (305697.4517000001, 4156837.429199999)
+		}
+	]
 
 
 

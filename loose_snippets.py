@@ -382,3 +382,55 @@ def cut_geometry(to_cut, cutter):
 
 
 cut_geometry(r"PATH_TO_POLY", r"PATH_TO_LINES")
+
+
+
+### Example of getting parameters in .pyt python toolbox as opposed to arcpy.GetParameterAsText(0) in python script tools
+# def get_Parameter_Info(self):
+#     # Define parameter definitions
+#     param0 = arcpy._Parameter(
+#         displayName="Input workspace",
+#         name="workspace",
+#         datatype="DEWorkspace",
+#         parameterType="Required",
+#         direction="Input")
+#     param1 = arcpy._Parameter(
+#         displayName="Input classified raster",
+#         name="input_raster",
+#         datatype="GPRasterLayer",
+#         parameterType="Required",
+#         direction="Input")
+#     param2 = arcpy._Parameter(
+#         displayName="Input features",
+#         name="input_features",
+#         datatype="GPFeatureLayer",
+#         parameterType="Required",
+#         direction="Input")
+#
+#
+#     params = [param0, param1, param2]
+#
+#     return params
+#
+#
+# toggled inputs are set to optional but throw error if not filled in
+# if self.params[2].value == True:
+#     self.params[3].enabled = 1
+#     self.params[3].setIDMessage("ERROR", 735, self.params[3].displayName)
+#     self.params[4].enabled = 0
+#     self.params[4].clearMessage()
+# else:
+#     self.params[3].enabled = 0
+#     self.params[3].clearMessage()
+#     self.params[4].enabled = 1
+#     self.params[4].setIDMessage("ERROR", 735, self.params[4].displayName)
+#
+#
+# def _execute_(self, parameters, messages):
+#     # The source code of the tool.
+#     # Define some paths/variables
+#     outWorkspace = parameters[0].valueAsText
+#     arcpy.env.workspace = outWorkspace
+#     output_location = parameters[0].valueAsText
+#     input_raster = parameters[1].valueAsText
+#     input_features = parameters[2].valueAsText
