@@ -162,24 +162,63 @@ class Geodatabase(object):
         path = self.path
         arcpy.env.workspace = self.path
 
-        gdb_attributes_dict = {'name':arcpy.Describe(path).name,
-                               'release': arcpy.Describe(path).release,
-                               'workspaceType': arcpy.Describe(path).workspaceType,
-                               'connectionProperties': arcpy.Describe(path).connectionProperties,
-                               'connectionString': arcpy.Describe(path).connectionString,
-                               'workspaceFactoryProgID': arcpy.Describe(path).workspaceFactoryProgID,
-                               'featureClassesNames': arcpy.ListFeatureClasses(),
-                               'featureClassesFullPaths': [os.path.join(self.path,fc)
+        gdb_attributes_dict = {'name': arcpy.Describe(path).name,
+                               'workspace_type': arcpy.Describe(path).workspaceType,
+							   'workspace_ID': arcpy.Describe(path).workspaceFactoryProgID,
+                               'connection_properties': arcpy.Describe(path).connectionProperties,
+                               'connection_string': arcpy.Describe(path).connectionString,
+                               'feature_class_list': arcpy.ListFeatureClasses(),
+                               'feature_class_full_paths': [os.path.join(self.path,fc)
                                                            for fc in arcpy.ListFeatureClasses()]}
+
+		# Change ArcPy's unreadable workspaceFactoryProgID output to something useful
+		# AccessWorkspaceFactory, FileGDBWorkspaceFactory, InMemoryWorkspaceFactory, SdeWorkspaceFactory, or Shapefile
+		gdb_attributes_dict['workspace_ID'] = gdb_attributes_dict['workspace_ID'].split('.')[1] if gdb_attributes_dict['workspace_ID'] else 'Shapefile'
 
         for k,v in gdb_attributes_dict.iteritems():
             setattr(self, k, v)
 
+"""name"""
+"""workspace_type"""
+	'FileSystem' # coverage, shapefile, in_memory workspaces
+	'LocalDatabase' # file or personal GDBs
+	'RemoteDatabase' # remote connection GDBs (i.e. enterprise)
+"""workspace_ID"""
+	'AccessWorkspaceFactory' # Personal geodatabase
+    'FileGDBWorkspaceFactory' # File geodatabase
+    'InMemoryWorkspaceFactory' # In-memory workspace
+    'SdeWorkspaceFactory' # Enterprise geodatabase
+    'Shapefile' # Technically could be Coverage, CAD, VPF, or another format but is likely a shp with our data
+"""connection_properties"""
+	# Describe().connectionProperties is a property set. The connection properties for an enterprise geodatabase workspace will vary depending on the type of enterprise database being used. Possible properties include the following:
+	'authentication_mode' # Credential authentication mode of the connection, either OSA or DBMS.
+	'database' # Database connected to.
+	'historical_name' # The historical marker name of the historical version connected to.
+	'historical_timestamp' # A date time that represents a moment timestamp in the historical version connected to.
+	'is_geodatabase' # String. Returns true if the database has been enabled to support a geodatabase; otherwise, it's false.
+	'instance' # Instance connected to.
+	'server' # Enterprise server name connected to.
+	'user' # Connected user.
+	'version' # The transaction version name of the transactional version connected to.
+	'branch' # The branch version name of the branch version connected to.
+"""connection_string"""
+	# The connection string being used in conjunction with the enterprise database type. For any other workspace type, returns an empty string.
+"""feature_class_list"""
+	['Springs',
+	'Tracts',
+	'Trails',
+	'Roads']
+"""feature_class_full_paths"""
+	[u'C:\\ArcTutor\\Editing\\Zion.gdb\\Springs',
+    u'C:\\ArcTutor\\Editing\\Zion.gdb\\Tracts',
+    u'C:\\ArcTutor\\Editing\\Zion.gdb\\Trails',
+    u'C:\\ArcTutor\\Editing\\Zion.gdb\\Roads']
+
     #----------------------------------------------------------------------
-    def __str__(self):
-        """returns the object as a string"""
-        return str({'path':self.path,
-                    'release':self.release})
+    # def __str__(self):
+    #     """returns the object as a string"""
+    #     return str({'path':self.path,
+    #                 'release':self.release})
     #----------------------------------------------------------------------
     def __repr__(self):
         """system representation of a class"""
@@ -200,11 +239,87 @@ class Geodatabase(object):
         self._path = path_value
     #----------------------------------------------------------------------
     @property
-    def feature_classes_objects(self):
+    def feature_class_objects(self):
         """gets a list of feature class objects in the gdb"""
-        return [FeatureClass(path) for path in self.featureClassesFullPaths]
+        return [FeatureClass(path) for path in self.feature_class_full_paths]
+
+"""feature_class_objects"""
+	[<__main__.FeatureClass object at 0x0C6D0A50>,
+    <__main__.FeatureClass object at 0x0C3B49F0>,
+    <__main__.FeatureClass object at 0x0C6737D0>,
+    <__main__.FeatureClass object at 0x0CBC96F0>]
+
     #----------------------------------------------------------------------
     @property
     def feature_class_features(self,fc_name):
         """gets a list of feature objects in the feature class"""
         return [FeatureClass(path) for path in [os.path.join(gdb.path,fc_name)]]
+
+
+
+
+
+
+gdb = Geodatabase(path=r"C:\ArcTutor\Editing\Zion.gdb",initialize=True)
+
+print gdb.featureClassesFullPaths
+#[u'C:\\ArcTutor\\Editing\\Zion.gdb\\Springs',
+    #u'C:\\ArcTutor\\Editing\\Zion.gdb\\Tracts',
+    #u'C:\\ArcTutor\\Editing\\Zion.gdb\\Trails',
+    #u'C:\\ArcTutor\\Editing\\Zion.gdb\\Roads']
+
+fcs = gdb.feature_classes_objects
+print fcs
+#[<__main__.FeatureClass object at 0x0C6D0A50>,
+    #<__main__.FeatureClass object at 0x0C3B49F0>,
+    #<__main__.FeatureClass object at 0x0C6737D0>,
+    #<__main__.FeatureClass object at 0x0CBC96F0>]
+
+print [(fc.fcPath,fc.shapeType) for fc in fcs]
+#[(u'C:\\ArcTutor\\Editing\\Zion.gdb\\Springs', u'Point'),
+#(u'C:\\ArcTutor\\Editing\\Zion.gdb\\Tracts', u'Polygon'),
+#(u'C:\\ArcTutor\\Editing\\Zion.gdb\\Trails', u'Polyline'),
+#(u'C:\\ArcTutor\\Editing\\Zion.gdb\\Roads', u'Polyline')]
+
+print [fc.fcPath for fc in fcs if fc.shapeType == 'Polyline']
+#[u'C:\\ArcTutor\\Editing\\Zion.gdb\\Trails',
+#u'C:\\ArcTutor\\Editing\\Zion.gdb\\Roads',
+#u'C:\\ArcTutor\\Editing\\Zion.gdb\\Streams']
+
+springs_fc = [fc.fcFeatures for fc in fcs if fc.baseName == 'Springs'][0]
+springs_feats = springs_fc.features
+
+print springs_fc.fields
+#[u'OBJECTID', u'Shape', u'ComID', u'FDate', u'Resolution', u'GNIS_ID',
+#u'GNIS_Name', u'ReachCode', u'FType', u'FCode']
+
+print springs_feats[0:3]
+#[(228, (305711.4726999998, 4156967.8816), 33034429, datetime.datetime(2002, 2, 6, 0, 0), 2, None, None, None, 458, 45800),
+#(229, (305315.84750000015, 4156801.4681), 33034431, datetime.datetime(2002, 2, 6, 0, 0), 2, None, None, None, 458, 45800),
+#(230, (305697.4517000001, 4156837.429199999), 33034433, datetime.datetime(2002, 2, 6, 0, 0), 2, None, None, None, 458, 45800)]
+
+print springs_fc.attribute_table[0:3]
+#[{u'ComID': 33034429,
+    #u'FCode': 45800,
+    #u'FDate': datetime.datetime(2002, 2, 6, 0, 0),
+    #u'FType': 458,
+    #u'GNIS_ID': None,
+    #u'OBJECTID': 228,
+    #u'Resolution': 2,
+    #u'Shape': (305711.4726999998, 4156967.8816)},
+    #{u'ComID': 33034431,
+    #u'FCode': 45800,
+    #u'FDate': datetime.datetime(2002, 2, 6, 0, 0),
+    #u'FType': 458,
+    #u'GNIS_ID': None,
+    #u'OBJECTID': 229,
+    #u'Resolution': 2,
+    #u'Shape': (305315.84750000015, 4156801.4681)},
+    #{u'ComID': 33034433,
+    #u'FCode': 45800,
+    #u'FDate': datetime.datetime(2002, 2, 6, 0, 0),
+    #u'FType': 458,
+    #u'GNIS_ID': None,
+    #u'OBJECTID': 230,
+    #u'Resolution': 2,
+    #u'Shape': (305697.4517000001, 4156837.429199999)}]
