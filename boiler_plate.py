@@ -51,7 +51,7 @@ class FeatureClass(object):
 
 		out_fields = [self.oid_field, self.length_field, self.area_field, self.shape_field] # List Geometry and OID fields to be removed
 		# Construct sanitized list of field names
-		field_list = [field.name for field in arcpy.ListFields(path) if field.type not in ['Geometry'] and field.name not in out_fields]
+		field_list = [field.name for field in arcpy.ListFields(path) if field.type not in ['Geometry'] and not any(substring in field.name for substring in out_fields)]
 		# Add OID@ token to index[-2] and Shape@ geometry token to index[-1]
 		field_list.append('OID@')
 		field_list.append('SHAPE@')

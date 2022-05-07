@@ -122,7 +122,6 @@ def get_count(fc_layer): # Returns feature count
 #### Update DVOF sourcedates to first of the month for stupid caci bullshit
 import arcpy
 from datetime import datetime
-
 with arcpy.da.UpdateCursor(dvof_file, ['SOURCEDT']) as dvof:
 	for row in dvof:
 		date_field = str(row[0])
@@ -167,16 +166,13 @@ def make_field_list(dsc): # Construct a list of proper feature class fields
 	# Sanitizes Geometry fields to work on File Geodatabases or SDE Connections
 	#field_list = make_field_list(describe_obj)
 	fields = dsc.fields # List of all fc fields
-	out_fields = [dsc.OIDFieldName, dsc.lengthFieldName, dsc.areaFieldName] # List Geometry and OID fields to be removed
+	out_fields = [dsc.OIDFieldName, dsc.lengthFieldName, dsc.areaFieldName, 'shape', 'area', 'length', 'global'] # List Geometry and OID fields to be removed
 	# Construct sanitized list of field names
-	field_list = [field.name for field in fields if field.type not in ['Geometry'] and field.name not in out_fields]
-	# Further cleaning to account for other possible geometry standards including ST_Geometry
-	field_list[:] = [x for x in field_list if 'Shape' not in x and 'shape' not in x and 'Area' not in x and 'area' not in x and 'Length' not in x and 'length' not in x]
-	# Add OID@ token to index[-2] and Shape@ geometry token to index[-1]
+	field_list = [field.name for field in fields if field.type not in ['Geometry'] and not any(substring in field.name.lower() for substring in out_fields if substring)]
+	# Add ufi field to index[-3], OID@ token to index[-2], and Shape@ geometry token to index[-1]
 	field_list.append('OID@')
 	field_list.append('SHAPE@')
 	return field_list
-
 
 
 def get_local(out_path, dsc): # Gets the clean feature class name and its local path in the target GDB
@@ -227,6 +223,62 @@ def fractinull(shp, fc_name, oid): # Checks for NULL geometry
 	if shp is None:
 		write("{0} feature OID: {1} found with NULL geometry. Skipping transfer.".format(fc_name, oid))
 		continue
+
+
+# Ouputs which fields in which row in a feature class have NULL values as well as a total count. Does this by making list of NULL fields for each row
+count_nulls = 0
+with arcpy.da.SearchCursor(fc, '*') as scursor:
+    for i, srow in enumerate(scursor):
+        null_fields = [name for name, value in zip(scursor.fields, srow) if value is None]
+        if null_fields:
+            print 'found NULLs in row {}: {}'.format(i + 1, ', '.join(null_fields)) # found NULLs in row 35: plt2, version
+            count_nulls += len(null_fields)
+print('{} total NULL values'.format(count_nulls)) # 110 total NULL values
+
+
+# Lists fields in feature class that have NULL values or ones that don't have NULL values. Can specify field_type
+def get_fields(in_fc,only_field_type="String",not_null=True):
+	'''returns list of field names of specified data type and contain at least one not NULL value'''
+	if not not_null:
+		all_fields = [field.name for field in arcpy.ListFields(in_fc,field_type=only_field_type)]
+		return all_fields
+	else:
+		all_fields = [field.name for field in arcpy.ListFields(in_fc,field_type=only_field_type) if field.isNullable != "False"]
+		#getting a dict {field name : [list of all values]}
+		fields_dict = {field: list(set([feature[all_fields.index(field)] for feature in arcpy.da.SearchCursor(in_fc,all_fields)])) for field in all_fields}
+	null_fields = [k for k,v in fields_dict.iteritems() if v == [None]]
+	not_null_fields = list(set(all_fields).symmetric_difference(set(null_fields)))
+	return null_fields
+# null_fields = get_fields('TransportationGroundCurves', 'long', True)
+# null_fields.sort()
+# print(null_fields)
+# [u'lc1', u'ffn', u'nos', u'loc']
+
+
+def writeresults(tool_name): # If tool fails, get messages and output error report before endind process
+	write("\n\n***Failed to run {0}.***\n".format(tool_name))
+	messages = ap.GetMessages(0)
+	warnings = ap.GetMessages(1)
+	errors = ap.GetMessages(2)
+	write("GP Tool Outputs:")
+	write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+	write(messages)
+	write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+	if len(warnings) > 0:
+		write("Tool Warnings:")
+		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		write(warnings)
+		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+	if len(errors) > 0:
+		write("Error Report:")
+		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+		write(errors)
+		write("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+	write('                       ______\n                    .-"      "-.\n                   /            \\\n       _          |              |          _\n      ( \\         |,  .-.  .-.  ,|         / )\n       > "=._     | )(__/  \\__)( |     _.=" <\n      (_/"=._"=._ |/     /\\     \\| _.="_.="\\_)\n             "=._ (_     ^^     _)"_.="\n                 "=\\__|IIIIII|__/="\n                _.="| \\IIIIII/ |"=._\n      _     _.="_.="\\          /"=._"=._     _\n     ( \\_.="_.="     `--------`     "=._"=._/ )\n      > _.="                            "=._ <\n     (_/                                    \\_)\n')
+	write("Please rerun the tool, but uncheck the {0} tool option. Either the feature class is too big or something else has gone wrong.".format(tool_name))
+	write("Exiting tool.\n")
+	sys.exit(0)
+	#print(u'                 uuuuuuu\n             uu$$$$$$$$$$$uu\n          uu$$$$$$$$$$$$$$$$$uu\n         u$$$$$$$$$$$$$$$$$$$$$u\n        u$$$$$$$$$$$$$$$$$$$$$$$u\n       u$$$$$$$$$$$$$$$$$$$$$$$$$u\n       u$$$$$$$$$$$$$$$$$$$$$$$$$u\n       u$$$$$$"   "$$$"   "$$$$$$u\n       "$$$$"      u$u       $$$$"\n        $$$u       u$u       u$$$\n        $$$u      u$$$u      u$$$\n         "$$$$uu$$$   $$$uu$$$$"\n          "$$$$$$$"   "$$$$$$$"\n            u$$$$$$$u$$$$$$$u\n             u$"|¨|¨|¨|¨|"$u\n  uuu        $$u|¯|¯|¯|¯|u$$       uuu\n u$$$$        $$$$$u$u$u$$$       u$$$$\n  $$$$$uu      "$$$$$$$$$"     uu$$$$$$\nu$$$$$$$$$$$uu    """""    uuuu$$$$$$$$$$\n$$$$"""$$$$$$$$$$uuu   uu$$$$$$$$$"""$$$"\n """      ""$$$$$$$$$$$uu ""$"""\n           uuuu ""$$$$$$$$$$uuu\n  u$$$uuu$$$$$$$$$uu ""$$$$$$$$$$$uuu$$$\n  $$$$$$$$$$""""           ""$$$$$$$$$$$"\n   "$$$$$"                      ""$$$$""\n     $$$"                         $$$$"')
 
 
 
@@ -295,6 +347,12 @@ with arcpy.da.SearchCursor(fc, field_list) as scursor:
 ################################################################################
 
 
+import sys
+import subprocess
+subprocess.check_call([sys.executable, '-m', 'pip', 'install',
+'playsound'])
+import playsound
+playsound("MyPath\\MySound.mp3")
 
 
 def find_dupes(fc, check_field, update_field):
