@@ -42,14 +42,14 @@
 
 
 # Finds empty fields and NULL geometry.
-populated = lambda x: x is not None and str(x).strip() != ''
+populated = lambda x: x is not None and str(x).strip() != '' and x is not -999999
 fc_fields = ['foobar', 'SHAPE@']
 with arcpy.da.SearchCursor(fc, fc_fields) as scursor:
 	for row in scursor:
 		if row[-1] is None:
 			pass # NULL Geometry
 		if not populated(row[0]):
-			pass # Field is NULL or empty
+			pass # Field is NULL, empty string, or default value
 
 
 
@@ -175,6 +175,19 @@ def make_field_list(dsc): # Construct a list of proper feature class fields
 	return field_list
 
 
+def copy_fc(source, target, *args, **kwargs): #(s_f)ields, (s_q)uery, (t_f)ields, (t_q)uery
+	# copy_fc(source_var, target_var, s_f=s_fields, s_q=s_query, t_f=t_fields, t_q=t_query)
+    s_fields = kwargs.get('s_f', "'*'") # Default s_fields variable will be '*' for all fields
+    s_query = kwargs.get('s_q', "''") #### Redo the query variables. They don't work if left empty
+    t_fields = kwargs.get('t_f', "'*'") # Default t_fields variable will be '*' for all fields
+    t_query = kwargs.get('t_q', "''") #### Redo the query variables. They don't work if left empty
+
+	with arcpy.da.SearchCursor(source, s_fields) as scursor: #, s_query) as scursor:
+		with arcpy.da.InsertCursor(target, t_fields) as icursor: #, t_query) as icursor:
+			for row in scursor:
+				icursor.insertRow(row)
+
+
 def get_local(out_path, dsc): # Gets the clean feature class name and its local path in the target GDB
 	#local_fc_path, clean_fc_name = get_local(output_path, describe_obj)
 	# dsc.file        = hexagon250_e04a_surge2.sde.AeronauticCrv
@@ -184,6 +197,9 @@ def get_local(out_path, dsc): # Gets the clean feature class name and its local 
 	local_fc = os.path.join(out_path, "TDS", fc_name) # C:\Projects\njcagle\finishing\E04A\hexagon250_e04a_surge2_2022Mar28_1608.gdb\TDS\AeronauticCrv
 	return local_fc, fc_name
 
+
+# Get name of input database for either SDE or file GDB to construct output variables
+gdb_name_raw = re.findall(r"[\w']+", os.path.basename(os.path.split(TDS)[0]))[0]
 
 
 def make_gdb_schema(TDS, xml_out, out_folder, gdb_name, out_path): # Creates a new file GDB with an empty schema identical to the source
@@ -369,19 +385,6 @@ def find_dupes(fc, check_field, update_field):
 
 
 
-def copy_fc(source, target, *args, **kwargs): #(s_f)ields, (s_q)uery, (t_f)ields, (t_q)uery
-	# copy_fc(source_var, target_var, s_f=s_fields, s_q=s_query, t_f=t_fields, t_q=t_query)
-    s_fields = kwargs.get('s_f', "'*'") # Default s_fields variable will be '*' for all fields
-    s_query = kwargs.get('s_q', "''")
-    t_fields = kwargs.get('t_f', "'*'") # Default t_fields variable will be '*' for all fields
-    t_query = kwargs.get('t_q', "''")
-
-	with arcpy.da.SearchCursor(source, s_fields, s_query) as scursor:
-		with arcpy.da.InsertCursor(target, t_fields, t_query) as icursor:
-			for row in scursor:
-				icursor.insertRow(row)
-
-
 
 
 import arcpy
@@ -492,3 +495,40 @@ cut_geometry(r"PATH_TO_POLY", r"PATH_TO_LINES")
 #     output_location = parameters[0].valueAsText
 #     input_raster = parameters[1].valueAsText
 #     input_features = parameters[2].valueAsText
+
+
+
+arcpy.env.workspace = r'T:\GEOINT\FEATURE DATA\Hexagon 250-251\SDE_Connections\hexagon250_h12b_radahn_north.sde\hexagon250_h12b_radahn_north.sde.TDS'
+
+def make_field_list(dsc): # Construct a list of proper feature class fields
+	# Sanitizes Geometry fields to work on File Geodatabases or SDE Connections
+	#field_list = make_field_list(describe_obj)
+	fields = dsc.fields # List of all fc fields
+	out_fields = [dsc.OIDFieldName, dsc.lengthFieldName, dsc.areaFieldName, 'shape', 'area', 'length', 'global'] # List Geometry and OID fields to be removed
+	# Construct sanitized list of field names
+	field_list = [field.name for field in fields if field.type not in ['Geometry'] and not any(substring in field.name.lower() for substring in out_fields if substring)]
+	# Add ufi field to index[-3], OID@ token to index[-2], and Shape@ geometry token to index[-1]
+	field_list.append('OID@')
+	field_list.append('SHAPE@')
+	return field_list
+
+ag_local_dsc = arcpy.Describe("AgricultureSurfaces_local")
+field_list = make_field_list(ag_local_dsc)
+field_list.remove(u'created_user')
+field_list.remove(u'created_date')
+field_list.remove(u'last_edited_user')
+field_list.remove(u'last_edited_date')
+
+def copy_fc(source, target, *args, **kwargs): #(s_f)ields, (s_q)uery, (t_f)ields, (t_q)uery
+	# copy_fc(source_var, target_var, s_f=s_fields, s_q=s_query, t_f=t_fields, t_q=t_query)
+    s_fields = kwargs.get('s_f', "'*'") # Default s_fields variable will be '*' for all fields
+    #s_query = kwargs.get('s_q', "''")
+    t_fields = kwargs.get('t_f', "'*'") # Default t_fields variable will be '*' for all fields
+    #t_query = kwargs.get('t_q', "''")
+
+	with arcpy.da.SearchCursor(source, s_fields) as scursor:
+		with arcpy.da.InsertCursor(target, t_fields) as icursor:
+			for row in scursor:
+				icursor.insertRow(row)
+
+copy_fc("AgricultureSurfaces_local", r"sde\AgricultureSurfaces", s_f=field_list, t_f=field_list)
