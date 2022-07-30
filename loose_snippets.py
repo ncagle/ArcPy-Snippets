@@ -38,6 +38,17 @@
 #                          \_\     /_/  \__
 #                                        \_\
 
+#                           __                    __
+#           __       __     \_\  __          __   \_\  __   __       __
+#           \_\     /_/        \/_/         /_/      \/_/   \_\     /_/
+#         .-.  \.-./  .-.   .-./  .-.   .-./  .-.   .-\   .-.  \.-./  .-.
+# `.     //-\\_//-\\_//-\\_//-\\_//-\\_//-\\_// \\_//-\\_//-\\_//-\\_//-\\
+# . `.__//   '-'   '-'\  '-'   '-'  /'-'   '-'\__'-'   '-'__/'-'   '-'\__
+#  `.___/              \__       __/\          \_\       /_/           \_\
+#                       \_\     /_/  \__
+#                                     \_\
+
+
 
 
 
@@ -56,6 +67,27 @@ with arcpy.da.SearchCursor(fc, fc_fields) as scursor:
 # Remove Nones from a list
 cleaned_list = list(filter(None, filenames))
 
+
+r'C:\Python27\ArcGIS' + '.'.join(arcpy.GetInstallInfo()['Version'].split('.')[0:2]) # C:\Python27\ArcGIS10.x
+
+
+
+from os.path import getctime, getmtime
+from time import ctime
+from datetime import datetime as dt
+
+def getDateCreated(filename):
+    timestamp = dt.strptime(ctime(getctime(filename)), "%a %b %d %H:%M:%S %Y")
+    return timestamp.strftime('%d/%m/%Y')
+
+def getDateModified(filename):
+    timestamp = dt.strptime(ctime(getmtime(filename)), "%a %b %d %H:%M:%S %Y")
+    return timestamp.strftime('%d/%m/%Y')
+
+
+
+def mod_size(i): # Uses string modulo instead of str(i) to get length of integer
+    return len("%i" % i)
 
 
 def debug_view(**kwargs): # Input variable to view info in script output
@@ -445,6 +477,41 @@ def cut_geometry(to_cut, cutter):
 cut_geometry(r"PATH_TO_POLY", r"PATH_TO_LINES")
 
 
+"""If you are using Arcpy scripting, data lock issues have become even more problematic with 10.1.
+
+		If the locks are being created by your code, then you aren't cleaning up
+		after yourself. Release all references to feature classes, workspaces,
+		cursors, etc. The locks are removed when you have no more references to
+		the objects being locked.
+
+Well, that is the way it should work, but it rarely does. Usually a code will work occasionally, but often crash inexplicably in different places.
+The problem appears to be that locks are just left sitting there `for a while', but the code runs much faster than the speed at which the locks are removed. However, some of the inbuilt Arc tools seem to force locks to be cleared on demand (as locks apply to entire GDBs all at once, a lock will prevent you from working with any of the contained Feature Classes). These tools are arcpy.Compact_management() and arcpy.Exists().
+
+Here is a little function that I use within my code that has dramatically increased reliability (for a script that creates and edits multiple GDBs and Feature Classes within them)
+
+It is used by simply passing the workspace (GDB) path to the function, and should be done after every operation on either the workspace (i.e. GDB creation) or Feature Classes within the workspace (i.e. Cursors, adding fields, calculations, etc.). For example (shown here as a standalone script, with the function at the top; to use the function, copy it and paste it between the imports and the actual program)
+Source: https://gis.stackexchange.com/users/9118/stacyr"""
+
+import arcpy
+def clearWSLocks(inputWS):
+  '''Attempts to clear locks on a workspace, returns stupid message.'''
+  if all([arcpy.Exists(inputWS), arcpy.Compact_management(inputWS), arcpy.Exists(inputWS)]):
+    return 'Workspace (%s) clear to continue...' % inputWS
+  else:
+    return '!!!!!!!! ERROR WITH WORKSPACE %s !!!!!!!!' % inputWS
+
+GDBpath = 'C:/Temp/'
+GDBname = 'Test.gdb'
+tableName = 'SweetFC'
+arcpy.CreateFileGDB_management(GDBpath, GDBname)
+print(clearWSLocks(GDBpath+GDBname))
+arcpy.CreateTable_management(GDBpath+GDBname, tableName)
+print(clearWSLocks(GDBpath+GDBname))
+# etc....
+
+
+
+
 
 ### Example of getting parameters in .pyt python toolbox as opposed to arcpy.GetParameterAsText(0) in python script tools
 # def get_Parameter_Info(self):
@@ -532,3 +599,28 @@ def copy_fc(source, target, *args, **kwargs): #(s_f)ields, (s_q)uery, (t_f)ields
 				icursor.insertRow(row)
 
 copy_fc("AgricultureSurfaces_local", r"sde\AgricultureSurfaces", s_f=field_list, t_f=field_list)
+
+
+
+
+
+'''
+It is not enough to create an output parameter in the ModelBuilder interface for your script. This just tells ModelBuilder the script should generate output, and how many parameters and what type, but you still need to explicitly set that output using arcpy.SetParameter() or arcpy.SetParameterAsText(), see the example below. Note that script parameters are called by index number, starting at 0 and upwards. So in your case, I see "outFeatures" as the third parameter, which has index number 2. So you need to set index number 2.
+
+By the way, the script below can both act as a ModelBuilder tool, and be called as function of an imported Python module, by importing the script in another script module, and then calling <YOUR_SCRIPT_NAME>.main().
+'''
+
+import arcpy
+
+def main(inputVariable):
+   # Do something
+   return <YOUR_SCRIPT_RESULT>
+
+if __name__ == '__main__':
+   # Get *input* for script
+   inputVariable = arcpy.GetParameter(0)
+   # Call main function
+   returnValue = main(inputVariable)
+
+   # Set *output* for script, NOTICE the parameter index number of the parameter before the variable to return.
+   arcpy.SetParameter(1,returnValue)
