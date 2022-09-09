@@ -70,6 +70,15 @@ cleaned_list = list(filter(None, filenames))
 
 r'C:\Python27\ArcGIS' + '.'.join(arcpy.GetInstallInfo()['Version'].split('.')[0:2]) # C:\Python27\ArcGIS10.x
 
+#############
+#############
+#############
+# ESRI method of deleting too small FeatureSrf
+cursor = arcpy.da.UpdateCursor(multiPartOutput, "SHAPE@AREA")
+featuresToDelete = (feature for feature in cursor if feature[0] < 50)
+for row in featuresToDelete:
+    cursor.deleteRow()
+del cursor
 
 
 from os.path import getctime, getmtime
