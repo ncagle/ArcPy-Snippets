@@ -1,0 +1,13 @@
+import arcpy
+
+selected_fid = []
+add_to_selection = False
+with arcpy.da.SearchCursor('Cary_line_area', 'FID') as scur:
+    for i, srow in enumerate(scur):
+        if not i % 1:
+            add_to_selection = not add_to_selection
+        if add_to_selection:
+            selected_fid.append(unicode(srow[0]))
+
+where_clause = "FID in ({0})".format(', '.join(selected_fid))
+selected_fc = arcpy.SelectLayerByAttribute_management('Cary_line_area', "NEW_SELECTION", where_clause)
