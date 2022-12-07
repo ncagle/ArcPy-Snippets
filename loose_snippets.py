@@ -52,6 +52,29 @@
 
 
 
+# Gets full display name of current windows user
+# Source: https://gist.github.com/diyan/4268997
+import ctypes
+def get_display_name():
+	# if os.name == 'nt':
+	GetUserNameExW = ctypes.windll.secur32.GetUserNameExW
+	name_display = 3
+	size = ctypes.pointer(ctypes.c_ulong(0))
+	GetUserNameExW(name_display, None, size)
+
+	name_buffer = ctypes.create_unicode_buffer(size.contents.value)
+	GetUserNameExW(name_display, name_buffer, size)
+	
+	return name_buffer.value
+	# else:
+	# 	import pwd
+	# 	# Note that for some reason pwd.getpwuid(os.geteuid())[4] did not work for me
+	# 	display_name = (entry[4] for entry in pwd.getpwall() if entry[2] == os.geteuid()).next()
+	# 	return display_name
+
+
+
+
 # Finds empty fields and NULL geometry.
 populated = lambda x: x is not None and str(x).strip() != '' and x is not -999999
 fc_fields = ['foobar', 'SHAPE@']
